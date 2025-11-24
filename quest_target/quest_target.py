@@ -271,11 +271,12 @@ def inside_rect(position, rect_bounds):
 
 
 def run_calibration_trial(win, mouse, prop, angle_bias, show_distractor=True):
-    square = visual.Rect(win, width=60, height=60, fillColor="deepskyblue", lineColor="deepskyblue")
-    dot = visual.Circle(win, radius=30, fillColor="orangered", lineColor="orangered")
+    # Smaller shapes (half the original size)
+    square = visual.Rect(win, width=30, height=30, fillColor="deepskyblue", lineColor="deepskyblue")
+    dot = visual.Circle(win, radius=15, fillColor="orangered", lineColor="orangered")
     
-    # We still start at START_POS to give room for the upward trajectory, 
-    # but we don't explicitly show the start/target as a task.
+    # Add target visual to match simulation setup
+    target_visual = visual.Circle(win, radius=15, fillColor="yellow", lineColor="yellow", pos=TARGET_POS)
     
     fixation = visual.TextStim(win, "+", color="white", height=36, pos=(0, 120))
     prompt = visual.TextStim(
@@ -289,8 +290,10 @@ def run_calibration_trial(win, mouse, prop, angle_bias, show_distractor=True):
     target_shape = rng.choice(["square", "circle"])
     target_snippet, distractor_snippet = sample_snippet_pair()
 
-    # Reset mouse to start position (bottom) so they don't run out of screen
+    # Hide system mouse cursor and set to start position
+    win.mouseVisible = False
     mouse.setPos(START_POS)
+    core.wait(0.1)  # Longer wait to ensure position updates
     event.clearEvents()
     clock = core.Clock()
     response = None
@@ -308,7 +311,7 @@ def run_calibration_trial(win, mouse, prop, angle_bias, show_distractor=True):
     if angle_bias == 90:
         applied_angle = int(rng.choice([90, -90]))
 
-    last = mouse.getPos()
+    last = mouse.getPos()  # Get actual mouse position after setting
     frame = 0
 
     while clock.getTime() < TRIAL_DURATION and response is None:
@@ -316,6 +319,16 @@ def run_calibration_trial(win, mouse, prop, angle_bias, show_distractor=True):
         dx = x - last[0]
         dy = y - last[1]
         last = (x, y)
+        
+        # Softer boundary handling - only prevent movement beyond edges
+        # Don't re-center, just clamp the position
+        if abs(x) > (WINDOW_SIZE[0]/2 - 50) or abs(y) > (WINDOW_SIZE[1]/2 - 50):
+            # Clamp position to window bounds
+            clamped_x = np.clip(x, -(WINDOW_SIZE[0]/2 - 50), (WINDOW_SIZE[0]/2 - 50))
+            clamped_y = np.clip(y, -(WINDOW_SIZE[1]/2 - 50), (WINDOW_SIZE[1]/2 - 50))
+            mouse.setPos((clamped_x, clamped_y))
+            last = (clamped_x, clamped_y)
+            dx = dy = 0  # No movement this frame
 
         dx, dy = rotate(dx, dy, applied_angle)
         frame += 1
@@ -371,6 +384,7 @@ def run_calibration_trial(win, mouse, prop, angle_bias, show_distractor=True):
 
         # Draw everything
         prompt.draw()
+        target_visual.draw()  # Show target
         
         if target_shape == "square":
             square.draw()
@@ -481,7 +495,10 @@ def run_control_only_phase(win, mouse, prop, label, targets_per_phase=3, max_tar
         # Fixed target position
         target_pos = TARGET_POS
 
+        # Hide system mouse cursor and set to start position
+        win.mouseVisible = False
         mouse.setPos(START_POS)
+        core.wait(0.1)  # Longer wait to ensure position updates
         event.clearEvents()
         
         # Start at START_POS
@@ -490,7 +507,7 @@ def run_control_only_phase(win, mouse, prop, label, targets_per_phase=3, max_tar
         vt = np.zeros(2, dtype=float)
         mag_m_lp = 0.0
         target_snippet, _ = sample_snippet_pair()
-        last = mouse.getPos()
+        last = mouse.getPos()  # Get actual mouse position after setting
         frame = 0
         clock = core.Clock()
 
@@ -500,6 +517,17 @@ def run_control_only_phase(win, mouse, prop, label, targets_per_phase=3, max_tar
             dx = x - last[0]
             dy = y - last[1]
             last = (x, y)
+            
+            # Softer boundary handling - only prevent movement beyond edges
+            # Don't re-center, just clamp the position
+            if abs(x) > (WINDOW_SIZE[0]/2 - 50) or abs(y) > (WINDOW_SIZE[1]/2 - 50):
+                # Clamp position to window bounds
+                clamped_x = np.clip(x, -(WINDOW_SIZE[0]/2 - 50), (WINDOW_SIZE[0]/2 - 50))
+                clamped_y = np.clip(y, -(WINDOW_SIZE[1]/2 - 50), (WINDOW_SIZE[1]/2 - 50))
+                mouse.setPos((clamped_x, clamped_y))
+                last = (clamped_x, clamped_y)
+                dx = dy = 0  # No movement this frame
+            
             frame += 1
 
             mag_m = math.hypot(dx, dy)
@@ -526,20 +554,25 @@ def run_control_only_phase(win, mouse, prop, label, targets_per_phase=3, max_tar
             tdx = prop * dx + (1 - prop) * target_ou_dx
             tdy = prop * dy + (1 - prop) * target_ou_dy
 
+            # Apply lowpass filter to velocity
             vt = LOWPASS * vt + (1 - LOWPASS) * np.array([tdx, tdy])
             proposed_pos = position + vt
             
-            # Clamp to screen bounds and reset velocity if we hit a boundary
+            # Clamp to screen bounds and dampen velocity if we hit a boundary
             if inside_rect(proposed_pos, screen_bounds):
                 position = proposed_pos
             else:
                 clamped_pos = clamp_to_rect(proposed_pos, screen_bounds)
-                # Reset velocity components that hit boundaries
+                # Dampen velocity when hitting boundaries to prevent getting stuck
+                # This is especially important in hard condition where OU noise dominates
                 if clamped_pos[0] != proposed_pos[0]:  # Hit left or right edge
                     vt[0] = 0
+                    vt[1] *= 0.5  # Dampen parallel component too
                 if clamped_pos[1] != proposed_pos[1]:  # Hit top or bottom edge
                     vt[1] = 0
+                    vt[0] *= 0.5  # Dampen parallel component too
                 position = clamped_pos
+            
             stimulus.pos = position
 
             text.draw()
@@ -581,6 +614,14 @@ def show_message(win, text, wait_for_key=True):
 def main():
     win = visual.Window(WINDOW_SIZE, color=(-0.2, -0.2, -0.2), units="pix")
     win.setMouseVisible(False)
+    win.mouseVisible = False  # Force cursor to be invisible
+    
+    # Try to access Pyglet backend to hide cursor (Windows workaround)
+    try:
+        win.winHandle.set_mouse_visible(False)
+    except:
+        pass
+    
     mouse = event.Mouse(win=win, visible=False)
 
     show_message(
