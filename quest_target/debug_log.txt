@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "quest_target.py", line 612, in <module>
+    main()
+  File "quest_target.py", line 600, in main
+    run_control_only_phase(win, mouse, easy_prop, "Easy")
+  File "quest_target.py", line 553, in run_control_only_phase
+    reached_msg.draw()
+NameError: name 'reached_msg' is not defined
