@@ -101,10 +101,7 @@ def run_trial(win, mouse, condition, trial_num):
     current_pos = list(START_POS)
     last_mouse_pos = mouse.getPos()
     
-    # Initialize noise state for smoothing
-    noise_rx = 0.0
-    noise_ry = 0.0
-    
+
     clock = core.Clock()
     
     while clock.getTime() < MAX_TRIAL_DURATION:
@@ -113,24 +110,19 @@ def run_trial(win, mouse, condition, trial_num):
         dx = mouse_pos[0] - last_mouse_pos[0]
         dy = mouse_pos[1] - last_mouse_pos[1]
 
-        # Update last_mouse_pos for next frame (keep real mouse coordinates)
+        # Update last_mouse_pos for next frame
         last_mouse_pos = mouse_pos
 
-        # 2. Update Noise State (Always, so wind keeps blowing)
-        # Generate new random target (-1 to 1)
-        target_rx = (random.random() * 2) - 1
-        target_ry = (random.random() * 2) - 1
-        
-        # Smoothly update current noise towards target (Low Pass Filter)
-        noise_rx = (1.0 - NOISE_SMOOTHING) * noise_rx + NOISE_SMOOTHING * target_rx
-        noise_ry = (1.0 - NOISE_SMOOTHING) * noise_ry + NOISE_SMOOTHING * target_ry
+        # Generate per-frame random noise (0 to 1)
+        noise_rx = random.random()
+        noise_ry = random.random()
+
+        # Apply control factor and scaling to noise
+        rx = (1.0 - control) * noise_rx * NOISE_SCALE
+        ry = (1.0 - control) * noise_ry * NOISE_SCALE
 
         # 3. Update Cursor (Only if moving)
         if dx != 0 or dy != 0:
-            # Apply control factor
-            rx = noise_rx * (1.0 - control) * NOISE_SCALE
-            ry = noise_ry * (1.0 - control) * NOISE_SCALE
-
             # Apply movement to logical cursor position
             current_pos[0] += dx + rx
             current_pos[1] += dy + ry
