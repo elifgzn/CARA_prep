@@ -14,7 +14,7 @@ TARGET_ZONE_X = (-300, 300)
 TARGET_ZONE_Y = (-200, 200)
 MAX_TRIAL_DURATION = 30  # seconds
 TRIALS_PER_CONDITION = 3
-NOISE_SCALE = 5.0 # noise strength
+NOISE_SCALE = 1.0 # noise strength if 1, has no effect. 
 
 # Control conditions
 CONDITIONS = [
@@ -69,65 +69,53 @@ def run_trial(win, mouse, condition, trial_num, trial_data):
     mouse.setPos(START_POS)
     core.wait(0.1)
     event.clearEvents()
-    
-    # Get the initial mouse position
-    mouse_pos = mouse.getPos()
 
-    # Initialize previous position with initial position
-    x_initial = mouse_pos[0]
-    y_initial = mouse_pos[1]
-
-    previous_x_actual = x_initial
-    previous_y_actual = y_initial
-
-    # Initialize transformed position
-    x_transformed = x_initial
-    y_transformed = y_initial   
-    
-    # Initialize trial variables
     clock = core.Clock()
-    start_time = clock.getTime()
-    hit_achieved = False
-    completion_time = None
-    trajectory = []
 
-    while (clock.getTime() - start_time) < MAX_TRIAL_DURATION:
+    cursor_pos = list(START_POS)  # Initialize as list [0, 0]
+    last_mouse_pos = np.array(mouse.getPos())
 
-        current_time = clock.getTime()
-
-        # Get the current mouse position
-        mouse_pos = mouse.getPos()
-        x_current = mouse_pos[0]
-        y_current = mouse_pos[1]
-
-        # Calculate deltas for the actual cursor
-        mouse_dx_actual = x_current - previous_x_actual
-        mouse_dy_actual = y_current - previous_y_actual
-
-        # Check if the actual cursor moved
-        if mouse_dx_actual != 0 or mouse_dy_actual != 0:
-            
-            # Calculate deltas for transformed cursor
-            mouse_dx_transformed = mouse_dx_actual
-            mouse_dy_transformed = mouse_dy_actual
-
-            # Generate noise
-            rx = (np.random.random() * 2 - 1) * NOISE_SCALE
-            ry = (np.random.random() * 2 - 1) * NOISE_SCALE
-            
-            # Update transformed position with movement + noise
-            x00 = x_transformed + mouse_dx_transformed + (1 - control) * rx
-            y00 = y_transformed + mouse_dy_transformed + (1 - control) * ry
-
-            x_transformed = x00
-            y_transformed = y00
-
-        # Check target hit
-        dist_to_target = distance((x_transformed, y_transformed), target_pos)
-        if dist_to_target < (TARGET_RADIUS + CURSOR_RADIUS):
+    while True:
+        # Get current mouse position
+        current_mouse_pos = np.array(mouse.getPos())
+        
+        # Calculate input (i) as the change in mouse position
+        i_x = (current_mouse_pos[0] - last_mouse_pos[0]) 
+        i_y = (current_mouse_pos[1] - last_mouse_pos[1]) 
+      
+        # Generate random values centered around 0
+    
+        rx = (np.random.random() - 0.5) * 2 * NOISE_SCALE
+        ry = (np.random.random() - 0.5) * 2 * NOISE_SCALE
+        
+        # Apply perturbation formula
+        # dx = i + (1-control) * rx
+        # dy = i + (1-control) * ry
+        dx = i_x + (1 - control) * rx
+        dy = i_y + (1 - control) * ry
+        
+        # Update cursor position
+        cursor_pos[0] += dx
+        cursor_pos[1] += dy
+        
+        # Keep cursor within window bounds
+        window_width = win.size[0] / 2
+        window_height = win.size[1] / 2
+        cursor_pos[0] = np.clip(cursor_pos[0], -window_width, window_width)
+        cursor_pos[1] = np.clip(cursor_pos[1], -window_height, window_height)
+        
+        # Update crosshair position
+        cursor.pos = cursor_pos
+        
+        # Update last mouse position
+        last_mouse_pos = current_mouse_pos.copy()
+        
+        # Check if cursor is on target
+        dist_to_target = distance(cursor_pos, target_pos)
+        on_target = dist_to_target < (TARGET_RADIUS + CURSOR_RADIUS)
+        
+        if on_target:
             hit_achieved = True
-            completion_time = current_time
-
             target.fillColor = "green"
             target.draw()
             cursor.draw()
@@ -135,40 +123,28 @@ def run_trial(win, mouse, condition, trial_num, trial_data):
             core.wait(0.3)
             break
 
-        # Draw all visuals
-        cursor.pos = (x_transformed, y_transformed)
-
+        # Check for key presses
+        keys = event.getKeys()
+        if 'escape' in keys:
+            win.close()
+            core.quit()
+        
+        
+        # Draw everything
         start_pos_visual.draw()
         target.draw()
         cursor.draw()
         info_text.draw()
         win.flip()
-
-        # Escape key
-        if 'escape' in event.getKeys(['escape']):
-            win.close()
-            core.quit()
         
-        # Update previous actual positions for next frame (CRITICAL FIX)
-        previous_x_actual = x_current
-        previous_y_actual = y_current
-
-    # Trial result storage
-    trial_result = {
-        'condition': label,
-        'control_level': control,
-        'trial_num': trial_num,
-        'target_x': target_pos[0],
-        'target_y': target_pos[1],
-        'hit': hit_achieved,
-        'completion_time': completion_time if hit_achieved else None,
-        'trajectory': trajectory
-    }
-    trial_data.append(trial_result)
+        # Small delay to control frame rate
+        core.wait(0.01)
+        
+    
 
     # Feedback screen
     if hit_achieved:
-        show_message(win, f"Success!\nTime: {completion_time:.2f}s", wait_for_key=False)
+        show_message(win, "Success!", wait_for_key=False)
     else:
         show_message(win, "Time's up! Try again.", wait_for_key=False)
 
