@@ -14,7 +14,7 @@ TARGET_ZONE_X = (-300, 300)
 TARGET_ZONE_Y = (-200, 200)
 MAX_TRIAL_DURATION = 30  # seconds
 TRIALS_PER_CONDITION = 3
-NOISE_SCALE = 1.0 # noise strength if 1, has no effect. 
+# NOISE_SCALE = 1.0 # noise strength if 1, has no effect. 
 
 # Control conditions
 CONDITIONS = [
@@ -85,8 +85,8 @@ def run_trial(win, mouse, condition, trial_num, trial_data):
       
         # Generate random values centered around 0
     
-        rx = (np.random.random() - 0.5) * 2 * NOISE_SCALE
-        ry = (np.random.random() - 0.5) * 2 * NOISE_SCALE
+        rx = (np.random.random() - 0.5) * 2
+        ry = (np.random.random() - 0.5) * 2
         
         # Apply perturbation formula
         # dx = i + (1-control) * rx
