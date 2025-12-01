@@ -1,6 +1,9 @@
 """
 Cursor Manipulation Task - Photo Task 1
 
+Modelled after Kumar & Srinivashan, 2017
+Cursor perturbations taken from Kumar & Srinivashan, 2017
+
 A Pygame experiment with three trials featuring different levels of cursor control.
 The user must move a rectangle frame (with perturbed cursor control) to encapsulate
 a target square.
