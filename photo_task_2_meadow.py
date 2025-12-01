@@ -33,6 +33,8 @@ FRAME_SIZE = 150
 FRAME_THICKNESS = 3
 
 # Noise smoothing factor (0.0 = no smoothing, 1.0 = maximum smoothing)
+# Increased smoothing means: new noise generated dominates
+# Decreased smoothing means: previous noise has more weight, i.e., less "jumpy" cursor
 NOISE_ALPHA = 0.2
 
 # Noise magnitude scaling factor (controls how strong the perturbation is)

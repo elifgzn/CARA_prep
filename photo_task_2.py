@@ -1,8 +1,8 @@
 """
-Cursor Manipulation Task - Photo Task 1
+Cursor Manipulation Task - Photo Task 2 (Perlin Noise)
 
 Modelled after Kumar & Srinivashan, 2017
-Cursor perturbations taken from Kumar & Srinivashan, 2017
+Cursor perturbations using Perlin Noise instead of smoothed random noise.
 
 A Pygame experiment with three trials featuring different levels of cursor control.
 The user must move a rectangle frame (with perturbed cursor control) to encapsulate
@@ -19,6 +19,96 @@ Press ESC to exit.
 import pygame
 import random
 import sys
+import math
+
+# ============================================================================
+# PERLIN NOISE IMPLEMENTATION
+# ============================================================================
+# Ported from the provided JS code (Stefan Gustavson / Joseph Gentle)
+
+class PerlinNoise:
+    def __init__(self, seed=0):
+        self.grad3 = [
+            (1,1,0),(-1,1,0),(1,-1,0),(-1,-1,0),
+            (1,0,1),(-1,0,1),(1,0,-1),(-1,0,-1),
+            (0,1,1),(0,-1,1),(0,1,-1),(0,-1,-1)
+        ]
+        
+        self.p = [
+            151,160,137,91,90,15,
+            131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
+            190, 6,148,247,120,234,75,0,26,197,62,94,252,219,203,117,35,11,32,57,177,33,
+            88,237,149,56,87,174,20,125,136,171,168, 68,175,74,165,71,134,139,48,27,166,
+            77,146,158,231,83,111,229,122,60,211,133,230,220,105,92,41,55,46,245,40,244,
+            102,143,54, 65,25,63,161, 1,216,80,73,209,76,132,187,208, 89,18,169,200,196,
+            135,130,116,188,159,86,164,100,109,198,173,186, 3,64,52,217,226,250,124,123,
+            5,202,38,147,118,126,255,82,85,212,207,206,59,227,47,16,58,17,182,189,28,42,
+            223,183,170,213,119,248,152, 2,44,154,163, 70,221,153,101,155,167, 43,172,9,
+            129,22,39,253, 19,98,108,110,79,113,224,232,178,185, 112,104,218,246,97,228,
+            251,34,242,193,238,210,144,12,191,179,162,241, 81,51,145,235,249,14,239,107,
+            49,192,214, 31,181,199,106,157,184, 84,204,176,115,121,50,45,127, 4,150,254,
+            138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
+        ]
+        
+        self.perm = [0] * 512
+        self.gradP = [None] * 512
+        
+        self.seed(seed)
+
+    def seed(self, seed):
+        if 0 < seed < 1:
+            seed *= 65536
+        
+        seed = int(math.floor(seed))
+        if seed < 256:
+            seed |= seed << 8
+            
+        for i in range(256):
+            if i & 1:
+                v = self.p[i] ^ (seed & 255)
+            else:
+                v = self.p[i] ^ ((seed >> 8) & 255)
+            
+            self.perm[i] = self.perm[i + 256] = v
+            self.gradP[i] = self.gradP[i + 256] = self.grad3[v % 12]
+
+    def dot2(self, g, x, y):
+        return g[0]*x + g[1]*y
+
+    def fade(self, t):
+        return t*t*t*(t*(t*6-15)+10)
+
+    def lerp(self, a, b, t):
+        return (1-t)*a + t*b
+
+    def perlin2(self, x, y):
+        # Find unit grid cell containing point
+        X = int(math.floor(x))
+        Y = int(math.floor(y))
+        
+        # Get relative xy coordinates of point within that cell
+        x = x - X
+        y = y - Y
+        
+        # Wrap the integer cells at 255
+        X = X & 255
+        Y = Y & 255
+        
+        # Calculate noise contributions from each of the four corners
+        n00 = self.dot2(self.gradP[X + self.perm[Y]], x, y)
+        n01 = self.dot2(self.gradP[X + self.perm[Y + 1]], x, y - 1)
+        n10 = self.dot2(self.gradP[X + 1 + self.perm[Y]], x - 1, y)
+        n11 = self.dot2(self.gradP[X + 1 + self.perm[Y + 1]], x - 1, y - 1)
+        
+        # Compute the fade curve value for x
+        u = self.fade(x)
+        
+        # Interpolate the four results
+        return self.lerp(
+            self.lerp(n00, n10, u),
+            self.lerp(n01, n11, u),
+            self.fade(y)
+        )
 
 # ============================================================================
 # CONFIGURABLE CONSTANTS
@@ -27,18 +117,13 @@ import sys
 # Screen settings
 BACKGROUND_COLOR = (200, 200, 200)  # Light grey
 
-# Sizes (easily modifiable)
+# Sizes
 SQUARE_SIZE = 40
 FRAME_SIZE = 100
 FRAME_THICKNESS = 3
 
-# Noise smoothing factor (0.0 = no smoothing, 1.0 = maximum smoothing)
-# Increased smoothing means: new noise generated dominates
-# Decreased smoothing means: previous noise has more weight, i.e., less "jumpy" cursor
-NOISE_ALPHA = 0.2
-
-# Noise magnitude scaling factor (controls how strong the perturbation is)
-NOISE_SCALE = 40.0  # Adjust this to make perturbations more/less noticeable
+# Noise magnitude scaling factor
+NOISE_SCALE = 40.0
 
 # Colors
 FIXATION_COLOR = (0, 0, 0)  # Black
@@ -79,7 +164,7 @@ pygame.init()
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 screen_width, screen_height = screen.get_size()
 
-pygame.display.set_caption("Cursor Manipulation Task")
+pygame.display.set_caption("Cursor Manipulation Task - Perlin")
 clock = pygame.time.Clock()
 
 # Hide the system cursor
@@ -88,6 +173,9 @@ pygame.mouse.set_visible(True)
 # Font for text display
 font = pygame.font.Font(None, 36)
 small_font = pygame.font.Font(None, 28)
+
+# Initialize Perlin Noise
+perlin = PerlinNoise(seed=random.randint(0, 65535))
 
 # ============================================================================
 # POSITION CALCULATIONS
@@ -183,9 +271,8 @@ def main():
     frame_y = float(frame_start_y)
     prev_mouse_x, prev_mouse_y = pygame.mouse.get_pos()
     
-    # Noise state for smooth perturbation
-    noise_rx = 0.0
-    noise_ry = 0.0
+    # Perlin noise time variable
+    noise_t = 0.0
     
     while running:
         # ====================================================================
@@ -206,9 +293,8 @@ def main():
                         # Reset frame position to lower 1/3
                         frame_x = float(frame_start_x)
                         frame_y = float(frame_start_y)
-                        # Reset noise state
-                        noise_rx = 0.0
-                        noise_ry = 0.0
+                        # Reset noise time
+                        noise_t = 0.0
                         # Move cursor to the center of the frame
                         pygame.mouse.set_pos(int(frame_x), int(frame_y))
                         # Set tracking origin to frame position
@@ -242,21 +328,17 @@ def main():
                 # Get current trial's control level
                 control = trials[current_trial]['control']
                 
-                # Generate new random values for perturbation
-                new_rx = random.uniform(-1, 1)
-                if new_rx == 0:
-                    new_rx = 1e-12  # tiny nonzero fallback
-                new_ry = random.uniform(-1, 1)
-                if new_ry == 0:
-                    new_ry = 1e-12  # tiny nonzero fallback
+                # Advance noise time
+                noise_t += 0.05
                 
-                # Apply exponential smoothing to prevent jitter
-                noise_rx = NOISE_ALPHA * new_rx + (1 - NOISE_ALPHA) * noise_rx
-                noise_ry = NOISE_ALPHA * new_ry + (1 - NOISE_ALPHA) * noise_ry
+                # Generate Perlin noise values
+                # Use different y-offsets to get independent noise for x and y
+                noise_val_x = perlin.perlin2(noise_t, 0)
+                noise_val_y = perlin.perlin2(noise_t, 100)
                 
                 # Apply perturbation formula: dx = input + (1 - control) * noise * scale
-                perturbed_dx = mouse_dx + (1 - control) * noise_rx * NOISE_SCALE
-                perturbed_dy = mouse_dy + (1 - control) * noise_ry * NOISE_SCALE
+                perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
+                perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
                 
                 # Update frame position
                 frame_x += perturbed_dx
