@@ -29,7 +29,7 @@ import os
 BACKGROUND_COLOR = (200, 200, 200)  # Light grey (for fixation)
 
 # Sizes (easily modifiable)
-FRAME_SIZE = 100
+FRAME_SIZE = 150
 FRAME_THICKNESS = 3
 
 # Noise smoothing factor (0.0 = no smoothing, 1.0 = maximum smoothing)
