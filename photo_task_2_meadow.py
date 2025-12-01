@@ -237,7 +237,11 @@ def main():
                 
                 # Generate new random values for perturbation
                 new_rx = random.uniform(-1, 1)
+                if new_rx == 0:
+                    new_rx = 1e-12  # tiny nonzero fallback
                 new_ry = random.uniform(-1, 1)
+                if new_ry == 0:
+                    new_ry = 1e-12  # tiny nonzero fallback
                 
                 # Apply exponential smoothing to prevent jitter
                 noise_rx = NOISE_ALPHA * new_rx + (1 - NOISE_ALPHA) * noise_rx
