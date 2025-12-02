@@ -28,12 +28,15 @@ import math
 
 class PerlinNoise:
     def __init__(self, seed=0):
+        
+        # these are the directions used to generate the noise field
         self.grad3 = [
             (1,1,0),(-1,1,0),(1,-1,0),(-1,-1,0),
             (1,0,1),(-1,0,1),(1,0,-1),(-1,0,-1),
             (0,1,1),(0,-1,1),(0,1,-1),(0,-1,-1)
         ]
         
+        # these provide a fixed permutation to create repeateable randomness
         self.p = [
             151,160,137,91,90,15,
             131,13,201,95,96,53,194,233,7,225,140,36,103,30,69,142,8,99,37,240,21,10,23,
@@ -50,11 +53,15 @@ class PerlinNoise:
             138,236,205,93,222,114,67,29,24,72,243,141,128,195,78,66,215,61,156,180
         ]
         
+        # these are used to store the permutation and gradient values
         self.perm = [0] * 512
         self.gradP = [None] * 512
         
         self.seed(seed)
 
+    # this function sets the seed for the random number generator. 
+    # If the seed is fixed we can get the exact kind of randomness (repeateable across participants)
+    # so here, we determine all future noise
     def seed(self, seed):
         if 0 < seed < 1:
             seed *= 65536
@@ -72,17 +79,23 @@ class PerlinNoise:
             self.perm[i] = self.perm[i + 256] = v
             self.gradP[i] = self.gradP[i + 256] = self.grad3[v % 12]
 
+    # imagine the whole field as a grid, each corner has a gradient vector(like an arrow. how big this is and its direction is the noise that is pseudorandom)
+    # this dot product function determines how much influence a given corner has on the final noise value (because values in all corners will be somehow blended for smooth noise) 
     def dot2(self, g, x, y):
         return g[0]*x + g[1]*y
 
+    # this function is used to smooth the noise values
     def fade(self, t):
         return t*t*t*(t*(t*6-15)+10)
 
+    # this function interpolates contributions from each corner of the grid square
     def lerp(self, a, b, t):
         return (1-t)*a + t*b
 
+    # THIS IS THE MAIN NOISE FUNCTION, where a noise value is actually computed for a given p(x,y)
+
     def perlin2(self, x, y):
-        # Find unit grid cell containing point
+        # determine which grid cell the point is in
         X = int(math.floor(x))
         Y = int(math.floor(y))
         
@@ -95,21 +108,30 @@ class PerlinNoise:
         Y = Y & 255
         
         # Calculate noise contributions from each of the four corners
+        # look up gradient vectors (the arrows on the corners) to shuffle consistently and compute dot products, one for each corner
         n00 = self.dot2(self.gradP[X + self.perm[Y]], x, y)
         n01 = self.dot2(self.gradP[X + self.perm[Y + 1]], x, y - 1)
         n10 = self.dot2(self.gradP[X + 1 + self.perm[Y]], x - 1, y)
         n11 = self.dot2(self.gradP[X + 1 + self.perm[Y + 1]], x - 1, y - 1)
         
-        # Compute the fade curve value for x
+        # Compute the fade curve value for x - i.e. smoothing
         u = self.fade(x)
         
         # Interpolate the four results
+        # and this is the perlin noise value for the point (x,y)
         return self.lerp(
             self.lerp(n00, n10, u),
             self.lerp(n01, n11, u),
             self.fade(y)
         )
 
+# Overall: if you call:
+# value = noise.perlin2(x, y)
+# value will be a pseudorandom number between -1 and 1, where:
+    # neighboring points have similar values
+    # noise changes gradually
+    # no sudden jump like in completely random / gaussian noise
+    # If you feed time into it you get smooth osscilations
 # ============================================================================
 # CONFIGURABLE CONSTANTS
 # ============================================================================
@@ -168,7 +190,7 @@ pygame.display.set_caption("Cursor Manipulation Task - Perlin")
 clock = pygame.time.Clock()
 
 # Hide the system cursor
-pygame.mouse.set_visible(True)
+pygame.mouse.set_visible(False)
 
 # Font for text display
 font = pygame.font.Font(None, 36)
@@ -313,7 +335,90 @@ def main():
                             state = 'fixation'
         
         # ====================================================================
-        # TRIAL STATE - CURSOR MOVEMENT WITH PERTURBATION
+        # TRIAL STATE - CURSOR MOVEMENT WITH ADDITIVE PERTURBATION
+        # ====================================================================
+        # if state == 'trial':
+        #     # Get current mouse position
+        #     mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+        #     # Calculate actual mouse displacement from previous frame
+        #     mouse_dx = mouse_x - prev_mouse_x
+        #     mouse_dy = mouse_y - prev_mouse_y
+            
+        #     # Only update if there's actual mouse movement
+        #     if mouse_dx != 0 or mouse_dy != 0:
+        #         # Get current trial's control level
+        #         control = trials[current_trial]['control']
+                
+        #         # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
+        #         noise_t += 0.05
+                
+        #         # Generate Perlin noise values
+        #         # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
+        #         noise_val_x = perlin.perlin2(noise_t, 0)
+        #         noise_val_y = perlin.perlin2(noise_t, 100)
+                
+        #         # Apply perturbation formula: dx = input + (1 - control) * noise * scale
+        #         perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
+        #         perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
+                
+        #         # Update frame position
+        #         frame_x += perturbed_dx
+        #         frame_y += perturbed_dy
+                
+        #         # Apply boundary constraints
+        #         frame_x, frame_y = apply_boundary_constraints(
+        #             frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
+        #         )
+            
+        #     # Always update previous mouse position
+        #     prev_mouse_x = mouse_x
+        #     prev_mouse_y = mouse_y
+
+        # ====================================================================
+        # TRIAL STATE - CURSOR MOVEMENT WITH MULTIPLICATIVE PERTURBATION
+        # needs a different noise scale!
+        # ====================================================================
+        # if state == 'trial':
+        #     # Get current mouse position
+        #     mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+        #     # Calculate actual mouse displacement from previous frame
+        #     mouse_dx = mouse_x - prev_mouse_x
+        #     mouse_dy = mouse_y - prev_mouse_y
+            
+        #     # Only update if there's actual mouse movement
+        #     if mouse_dx != 0 or mouse_dy != 0:
+        #         # Get current trial's control level
+        #         control = trials[current_trial]['control']
+                
+        #         # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
+        #         noise_t += 0.05
+                
+        #         # Generate Perlin noise values
+        #         # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
+        #         noise_val_x = perlin.perlin2(noise_t, 0)
+        #         noise_val_y = perlin.perlin2(noise_t, 100)
+                
+        #         # Apply perturbation
+        #         perturbed_dx = mouse_dx * (1 + (1 - control) * noise_val_x * NOISE_SCALE)
+        #         perturbed_dy = mouse_dy * (1 + (1 - control) * noise_val_y * NOISE_SCALE)
+                
+        #         # Update frame position
+        #         frame_x += perturbed_dx
+        #         frame_y += perturbed_dy
+                
+        #         # Apply boundary constraints
+        #         frame_x, frame_y = apply_boundary_constraints(
+        #             frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
+        #         )
+            
+        #     # Always update previous mouse position
+        #     prev_mouse_x = mouse_x
+        #     prev_mouse_y = mouse_y
+
+        # ====================================================================
+        # TRIAL STATE - CURSOR MOVEMENT WITH HYBRID PERTURBATION
         # ====================================================================
         if state == 'trial':
             # Get current mouse position
@@ -328,17 +433,24 @@ def main():
                 # Get current trial's control level
                 control = trials[current_trial]['control']
                 
-                # Advance noise time
+                # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
                 noise_t += 0.05
                 
                 # Generate Perlin noise values
-                # Use different y-offsets to get independent noise for x and y
+                # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
                 noise_val_x = perlin.perlin2(noise_t, 0)
                 noise_val_y = perlin.perlin2(noise_t, 100)
                 
-                # Apply perturbation formula: dx = input + (1 - control) * noise * scale
-                perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
-                perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
+                # Apply perturbation formula:
+
+                add_x = (1 - control) * noise_val_x * NOISE_SCALE   # baseline drift
+                mult_x = mouse_dx * (1 - control) * noise_val_x * NOISE_SCALE  # relative jitter
+                
+                add_y = (1 - control) * noise_val_y * NOISE_SCALE  # baseline drift
+                mult_y = mouse_dy * (1 - control) * noise_val_y * NOISE_SCALE  # relative jitter
+                
+                perturbed_dx = mouse_dx + add_x + mult_x    
+                perturbed_dy = mouse_dy + add_y + mult_y
                 
                 # Update frame position
                 frame_x += perturbed_dx
@@ -352,7 +464,6 @@ def main():
             # Always update previous mouse position
             prev_mouse_x = mouse_x
             prev_mouse_y = mouse_y
-        
         # ====================================================================
         # RENDERING
         # ====================================================================
