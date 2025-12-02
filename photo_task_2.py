@@ -146,6 +146,10 @@ FRAME_THICKNESS = 3
 
 # Noise magnitude scaling factor
 NOISE_SCALE = 40.0
+NOISE_SCALE_MULT = 20.0
+
+# Minimum multiplier to prevent cursor reversal when noise opposes movement
+MIN_MULTIPLIER = 0.2  # Adjust based on pilot testing (0.1 = harsh, 0.5 = mild)
 
 # Colors
 FIXATION_COLOR = (0, 0, 0)  # Black
@@ -377,6 +381,63 @@ def main():
 
         # ====================================================================
         # TRIAL STATE - CURSOR MOVEMENT WITH MULTIPLICATIVE PERTURBATION
+        # needs a different (smaller) noise scale!
+        # ====================================================================
+        if state == 'trial':
+            # Get current mouse position
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+            # Calculate actual mouse displacement from previous frame
+            mouse_dx = mouse_x - prev_mouse_x
+            mouse_dy = mouse_y - prev_mouse_y
+            
+            # Only update if there's actual mouse movement
+            if mouse_dx != 0 or mouse_dy != 0:
+                # Get current trial's control level
+                control = trials[current_trial]['control']
+                
+                # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
+                noise_t += 0.05
+                
+                # Generate Perlin noise values
+                # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
+                noise_val_x = perlin.perlin2(noise_t, 0)
+                noise_val_y = perlin.perlin2(noise_t, 100)
+                
+                #---------------------------------------------------
+                # OG multiplied
+                # perturbed_dx = mouse_dx * (1+ (1 - control) * noise_val_x * NOISE_SCALE_MULT)
+                # perturbed_dy = mouse_dy * (1+ (1 - control) * noise_val_y * NOISE_SCALE_MULT)
+                #---------------------------------------------------
+
+                #---------------------------------------------------
+                # Apply perturbation with clamping to prevent reversal
+                multiplier_x = 1 + (1 - control) * noise_val_x * NOISE_SCALE_MULT
+                multiplier_y = 1 + (1 - control) * noise_val_y * NOISE_SCALE_MULT
+                
+                # Clamp multipliers to prevent cursor from reversing direction
+                multiplier_x = max(MIN_MULTIPLIER, multiplier_x)
+                multiplier_y = max(MIN_MULTIPLIER, multiplier_y)
+                
+                perturbed_dx = mouse_dx * multiplier_x
+                perturbed_dy = mouse_dy * multiplier_y
+                #---------------------------------------------------
+                
+                # Update frame position
+                frame_x += perturbed_dx
+                frame_y += perturbed_dy
+                
+                # Apply boundary constraints
+                frame_x, frame_y = apply_boundary_constraints(
+                    frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
+                )
+            
+            # Always update previous mouse position
+            prev_mouse_x = mouse_x
+            prev_mouse_y = mouse_y
+
+        # ====================================================================
+        # TRIAL STATE - CURSOR MOVEMENT WITH HYBRID PERTURBATION
         # needs a different noise scale!
         # ====================================================================
         # if state == 'trial':
@@ -400,9 +461,16 @@ def main():
         #         noise_val_x = perlin.perlin2(noise_t, 0)
         #         noise_val_y = perlin.perlin2(noise_t, 100)
                 
-        #         # Apply perturbation
-        #         perturbed_dx = mouse_dx * (1 + (1 - control) * noise_val_x * NOISE_SCALE)
-        #         perturbed_dy = mouse_dy * (1 + (1 - control) * noise_val_y * NOISE_SCALE)
+        #         # Apply perturbation formula:
+
+        #         add_x = (1 - control) * noise_val_x * NOISE_SCALE   # baseline drift
+        #         mult_x = mouse_dx * (1 - control) * noise_val_x * NOISE_SCALE  # relative jitter
+                
+        #         add_y = (1 - control) * noise_val_y * NOISE_SCALE  # baseline drift
+        #         mult_y = mouse_dy * (1 - control) * noise_val_y * NOISE_SCALE  # relative jitter
+                
+        #         perturbed_dx = mouse_dx + add_x + mult_x    
+        #         perturbed_dy = mouse_dy + add_y + mult_y
                 
         #         # Update frame position
         #         frame_x += perturbed_dx
@@ -416,54 +484,6 @@ def main():
         #     # Always update previous mouse position
         #     prev_mouse_x = mouse_x
         #     prev_mouse_y = mouse_y
-
-        # ====================================================================
-        # TRIAL STATE - CURSOR MOVEMENT WITH HYBRID PERTURBATION
-        # ====================================================================
-        if state == 'trial':
-            # Get current mouse position
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            
-            # Calculate actual mouse displacement from previous frame
-            mouse_dx = mouse_x - prev_mouse_x
-            mouse_dy = mouse_y - prev_mouse_y
-            
-            # Only update if there's actual mouse movement
-            if mouse_dx != 0 or mouse_dy != 0:
-                # Get current trial's control level
-                control = trials[current_trial]['control']
-                
-                # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
-                noise_t += 0.05
-                
-                # Generate Perlin noise values
-                # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
-                noise_val_x = perlin.perlin2(noise_t, 0)
-                noise_val_y = perlin.perlin2(noise_t, 100)
-                
-                # Apply perturbation formula:
-
-                add_x = (1 - control) * noise_val_x * NOISE_SCALE   # baseline drift
-                mult_x = mouse_dx * (1 - control) * noise_val_x * NOISE_SCALE  # relative jitter
-                
-                add_y = (1 - control) * noise_val_y * NOISE_SCALE  # baseline drift
-                mult_y = mouse_dy * (1 - control) * noise_val_y * NOISE_SCALE  # relative jitter
-                
-                perturbed_dx = mouse_dx + add_x + mult_x    
-                perturbed_dy = mouse_dy + add_y + mult_y
-                
-                # Update frame position
-                frame_x += perturbed_dx
-                frame_y += perturbed_dy
-                
-                # Apply boundary constraints
-                frame_x, frame_y = apply_boundary_constraints(
-                    frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
-                )
-            
-            # Always update previous mouse position
-            prev_mouse_x = mouse_x
-            prev_mouse_y = mouse_y
         # ====================================================================
         # RENDERING
         # ====================================================================
