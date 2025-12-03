@@ -4,6 +4,7 @@ Trajectory Simulation Script - Photo Task 2
 Simulates 100 virtual participants completing the cursor manipulation task.
 Each participant completes 40 trials per condition (full/medium/low control).
 Uses minimum jerk trajectories with Perlin noise perturbations.
+Perlin noise applied additively!
 
 Output: simulated_trajectories.npy
 """
@@ -166,8 +167,8 @@ conditions = [
 ]
 
 # Noise parameters (matching photo_task_2.py)
-NOISE_SCALE_MULT = 20.0
-MIN_MULTIPLIER = 0.2  # Prevents cursor reversal
+NOISE_SCALE = 40.0
+
 
 # Timing parameters
 FRAME_RATE = 60  # Hz (matches pygame clock.tick(60))
@@ -225,6 +226,7 @@ def simulate_trial(control_level, perlin, noise_t_offset=0.0):
         
         # Only apply perturbation if there's movement
         if mouse_dx != 0 or mouse_dy != 0:
+            control = control_level
             # Advance noise time
             noise_t += 0.05
             
@@ -233,18 +235,16 @@ def simulate_trial(control_level, perlin, noise_t_offset=0.0):
             noise_val_x = perlin.perlin2(noise_t, 0)
             noise_val_y = perlin.perlin2(noise_t, 100)
             
-            # Apply multiplicative perturbation with clamping
-            # This matches the current implementation in photo_task_2.py
-            multiplier_x = 1 + (1 - control_level) * noise_val_x * NOISE_SCALE_MULT
-            multiplier_y = 1 + (1 - control_level) * noise_val_y * NOISE_SCALE_MULT
-            
-            # Clamp multipliers to prevent cursor reversal
-            multiplier_x = max(MIN_MULTIPLIER, multiplier_x)
-            multiplier_y = max(MIN_MULTIPLIER, multiplier_y)
-            
-            # Apply perturbation to the intended movement
-            perturbed_dx = mouse_dx * multiplier_x
-            perturbed_dy = mouse_dy * multiplier_y
+            # Apply perturbation formula: dx = input + (1 - control) * noise * scale
+            perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
+            perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
+
+            # ---- NEW CORRECTION FORCE so that the simulated cursor also goes to the target position----
+            kx = 0.10 * (ideal_x - actual_x)
+            ky = 0.10 * (ideal_y - actual_y)
+
+            perturbed_dx += kx
+            perturbed_dy += ky
             
             # Update actual position with perturbed movement
             actual_x += perturbed_dx
@@ -253,7 +253,11 @@ def simulate_trial(control_level, perlin, noise_t_offset=0.0):
         # Update previous ideal position for next iteration
         prev_ideal_x = ideal_x
         prev_ideal_y = ideal_y
-        
+
+        # Force endpoint to exact target
+        if frame == N_FRAMES - 1:
+            actual_x, actual_y = TARGET_POS
+
         # Store actual (perturbed) position
         trajectory[frame] = [actual_x, actual_y]
     
@@ -292,8 +296,7 @@ def run_simulation():
             'n_frames': N_FRAMES,
             'start_pos': START_POS,
             'target_pos': TARGET_POS,
-            'noise_scale_mult': NOISE_SCALE_MULT,
-            'min_multiplier': MIN_MULTIPLIER,
+            'noise_scale': NOISE_SCALE,
             'screen_width': SCREEN_WIDTH,
             'screen_height': SCREEN_HEIGHT,
             'conditions': conditions
