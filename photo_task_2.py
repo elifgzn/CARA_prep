@@ -8,6 +8,7 @@ Cursor perturbations using Perlin Noise instead of smoothed random noise.
     - gradient magnitudes are fixed
     - gradient directions are 12 distinct but fixed directions
     - which gradient vector is used at which point in the grid is pseudorandom
+    - citation: https://github.com/josephg/noisejs/blob/master/perlin.js
 
 A Pygame experiment with three trials featuring different levels of cursor control.
 The user must move a rectangle frame (with perturbed cursor control) to encapsulate

@@ -13,7 +13,7 @@ Output: Formatted table showing results
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+import pingouin as pg
 
 # Load simulated data
 print("Loading simulated trajectories...")
@@ -139,22 +139,27 @@ print("STATISTICAL TEST: Paired t-test (Medium vs Low Control)")
 print("="*80)
 print()
 
-# Perform paired t-test
+# Perform paired t-test using pingouin
 # H0: Mean deviation in medium control = Mean deviation in low control
 # H1: Mean deviation in medium control ≠ Mean deviation in low control
-t_statistic, p_value = stats.ttest_rel(medium_mean_per_participant, low_mean_per_participant)
+ttest_results = pg.ttest(medium_mean_per_participant, low_mean_per_participant, paired=True)
 
 print(f"Paired t-test comparing mean deviations:")
 print(f"  Medium Control: M = {medium_mean_per_participant.mean():.2f} px, SD = {medium_mean_per_participant.std():.2f} px")
 print(f"  Low Control:    M = {low_mean_per_participant.mean():.2f} px, SD = {low_mean_per_participant.std():.2f} px")
 print()
-print(f"  t-statistic: {t_statistic:.4f}")
-print(f"  p-value:     {p_value:.4e}")
-print(f"  df:          {n_participants - 1}")
+print(f"  t-statistic: {ttest_results['T'].values[0]:.4f}")
+print(f"  p-value:     {ttest_results['p-val'].values[0]:.4e}")
+print(f"  df:          {int(ttest_results['dof'].values[0])}")
+print(f"  Cohen's d:   {ttest_results['cohen-d'].values[0]:.4f}")
+print(f"  95% CI:      [{ttest_results['CI95%'].values[0][0]:.2f}, {ttest_results['CI95%'].values[0][1]:.2f}]")
 print()
 
 # Interpretation
 alpha = 0.05
+p_value = ttest_results['p-val'].values[0]
+cohens_d = ttest_results['cohen-d'].values[0]
+
 if p_value < alpha:
     print(f"  Result: SIGNIFICANT (p < {alpha})")
     print(f"  The mean deviation differs significantly between conditions.")
@@ -164,11 +169,7 @@ else:
 
 print()
 
-# Effect size (Cohen's d for paired samples)
-mean_diff = medium_mean_per_participant - low_mean_per_participant
-cohens_d = mean_diff.mean() / mean_diff.std()
-
-print(f"  Effect size (Cohen's d): {cohens_d:.4f}")
+# Effect size interpretation
 if abs(cohens_d) < 0.2:
     effect_interpretation = "negligible"
 elif abs(cohens_d) < 0.5:
@@ -177,7 +178,7 @@ elif abs(cohens_d) < 0.8:
     effect_interpretation = "medium"
 else:
     effect_interpretation = "large"
-print(f"  Interpretation: {effect_interpretation} effect")
+print(f"  Effect size interpretation: {effect_interpretation} effect")
 print()
 
 print("="*80)

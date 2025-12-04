@@ -124,7 +124,8 @@ def minimum_jerk_trajectory(start_pos, target_pos, t, duration):
     
     The minimum jerk model produces smooth, natural movements by minimizing
     the rate of change of acceleration (jerk). This is a well-established
-    model of human reaching movements.
+    model of human reaching movements. Used mostly in robotics. 
+    Looks a bit artificial for cursor movements, but might be a good starting point.
     
     Args:
         start_pos: (x, y) starting position
@@ -171,6 +172,7 @@ NOISE_SCALE = 40.0
 
 
 # Timing parameters
+# These are arbitrary, maybe needs to be adjusted based on a few self-trial duration examinations
 FRAME_RATE = 60  # Hz (matches pygame clock.tick(60))
 MOVEMENT_DURATION = 2.0  # seconds per trial
 N_FRAMES = int(FRAME_RATE * MOVEMENT_DURATION)  # 120 frames per trial
@@ -240,6 +242,7 @@ def simulate_trial(control_level, perlin, noise_t_offset=0.0):
             perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
 
             # ---- NEW CORRECTION FORCE so that the simulated cursor also goes to the target position----
+            # -- also makes it more human-like, so, makes a correction towards target position --
             kx = 0.10 * (ideal_x - actual_x)
             ky = 0.10 * (ideal_y - actual_y)
 
