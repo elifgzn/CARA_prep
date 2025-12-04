@@ -351,48 +351,6 @@ def main():
         # ====================================================================
         # TRIAL STATE - CURSOR MOVEMENT WITH ADDITIVE PERTURBATION
         # ====================================================================
-        if state == 'trial':
-            # Get current mouse position
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            
-            # Calculate actual mouse displacement from previous frame
-            mouse_dx = mouse_x - prev_mouse_x
-            mouse_dy = mouse_y - prev_mouse_y
-            
-            # Only update if there's actual mouse movement
-            if mouse_dx != 0 or mouse_dy != 0:
-                # Get current trial's control level
-                control = trials[current_trial]['control']
-                
-                # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
-                noise_t += 0.05
-                
-                # Generate Perlin noise values
-                # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
-                noise_val_x = perlin.perlin2(noise_t, 0)
-                noise_val_y = perlin.perlin2(noise_t, 100)
-                
-                # Apply perturbation formula: dx = input + (1 - control) * noise * scale
-                perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
-                perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
-                
-                # Update frame position
-                frame_x += perturbed_dx
-                frame_y += perturbed_dy
-                
-                # Apply boundary constraints
-                frame_x, frame_y = apply_boundary_constraints(
-                    frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
-                )
-            
-            # Always update previous mouse position
-            prev_mouse_x = mouse_x
-            prev_mouse_y = mouse_y
-
-        # ====================================================================
-        # TRIAL STATE - CURSOR MOVEMENT WITH MULTIPLICATIVE PERTURBATION
-        # needs a different (smaller) noise scale!
-        # ====================================================================
         # if state == 'trial':
         #     # Get current mouse position
         #     mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -414,11 +372,53 @@ def main():
         #         noise_val_x = perlin.perlin2(noise_t, 0)
         #         noise_val_y = perlin.perlin2(noise_t, 100)
                 
-        #         #---------------------------------------------------
-        #         # OG multiplied
-        #         perturbed_dx = mouse_dx * (1+ (1 - control) * noise_val_x * NOISE_SCALE_MULT)
-        #         perturbed_dy = mouse_dy * (1+ (1 - control) * noise_val_y * NOISE_SCALE_MULT)
-        #         #---------------------------------------------------
+        #         # Apply perturbation formula: dx = input + (1 - control) * noise * scale
+        #         perturbed_dx = mouse_dx + (1 - control) * noise_val_x * NOISE_SCALE
+        #         perturbed_dy = mouse_dy + (1 - control) * noise_val_y * NOISE_SCALE
+                
+        #         # Update frame position
+        #         frame_x += perturbed_dx
+        #         frame_y += perturbed_dy
+                
+        #         # Apply boundary constraints
+        #         frame_x, frame_y = apply_boundary_constraints(
+        #             frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
+        #         )
+            
+        #     # Always update previous mouse position
+        #     prev_mouse_x = mouse_x
+        #     prev_mouse_y = mouse_y
+
+        # ====================================================================
+        # TRIAL STATE - CURSOR MOVEMENT WITH MULTIPLICATIVE PERTURBATION
+        # needs a different (smaller) noise scale!
+        # ====================================================================
+        if state == 'trial':
+            # Get current mouse position
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            
+            # Calculate actual mouse displacement from previous frame
+            mouse_dx = mouse_x - prev_mouse_x
+            mouse_dy = mouse_y - prev_mouse_y
+            
+            # Only update if there's actual mouse movement
+            if mouse_dx != 0 or mouse_dy != 0:
+                # Get current trial's control level
+                control = trials[current_trial]['control']
+                
+                # Advance noise time -- increasing would make noise evolve smoothly instead of jitter
+                noise_t += 0.05
+                
+                # Generate Perlin noise values
+                # Use different y-offsets to get independent noise for x and y (two independent 1D perlin streams instead of a single 2D why?)
+                noise_val_x = perlin.perlin2(noise_t, 0)
+                noise_val_y = perlin.perlin2(noise_t, 100)
+                
+                #---------------------------------------------------
+                # OG multiplied
+                perturbed_dx = mouse_dx * (1+ (1 - control) * noise_val_x * NOISE_SCALE_MULT)
+                perturbed_dy = mouse_dy * (1+ (1 - control) * noise_val_y * NOISE_SCALE_MULT)
+                #---------------------------------------------------
 
                 #---------------------------------------------------
                 # # Apply perturbation with clamping to prevent reversal
@@ -482,18 +482,18 @@ def main():
                 #     perturbed_dy = mouse_dy
                 #---------------------------------------------------
                 
-            #     # Update frame position
-            #     frame_x += perturbed_dx
-            #     frame_y += perturbed_dy
+                # Update frame position
+                frame_x += perturbed_dx
+                frame_y += perturbed_dy
                 
-            #     # Apply boundary constraints
-            #     frame_x, frame_y = apply_boundary_constraints(
-            #         frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
-            #     )
+                # Apply boundary constraints
+                frame_x, frame_y = apply_boundary_constraints(
+                    frame_x, frame_y, FRAME_SIZE, screen_width, screen_height
+                )
             
-            # # Always update previous mouse position
-            # prev_mouse_x = mouse_x
-            # prev_mouse_y = mouse_y
+            # Always update previous mouse position
+            prev_mouse_x = mouse_x
+            prev_mouse_y = mouse_y
 
         # ====================================================================
         # TRIAL STATE - CURSOR MOVEMENT WITH HYBRID PERTURBATION

@@ -6,6 +6,14 @@ Each participant completes 40 trials per condition (full/medium/low control).
 Uses minimum jerk trajectories with Perlin noise perturbations.
 Perlin noise applied additively!
 
+Suggested Improvements to Make it more Human-Like:
+- Add inter-individual variability in correction gain (K)
+- Vary movement duration based on difficulty
+- Add submovements/corrections
+- Include trial-to-trial learning effects
+
+    alternatively, use human-mouse or human-cursor. however I don't know what they inherently control for (esp. learning  could be important)
+
 Output: simulated_trajectories.npy
 """
 
@@ -124,7 +132,9 @@ def minimum_jerk_trajectory(start_pos, target_pos, t, duration):
     
     The minimum jerk model produces smooth, natural movements by minimizing
     the rate of change of acceleration (jerk). This is a well-established
-    model of human reaching movements. Used mostly in robotics. 
+    model of human reaching movements. 
+    https://www.jneurosci.org/content/5/7/1688
+    Used mostly in robotics. 
     Looks a bit artificial for cursor movements, but might be a good starting point.
     
     Args:
@@ -161,6 +171,7 @@ N_PARTICIPANTS = 100
 TRIALS_PER_CONDITION = 40
 
 # Conditions (matching photo_task_2.py)
+# they don't alternate, not like actual experimental design
 conditions = [
     {'control': 1.0, 'label': 'full_control'},
     {'control': 0.5, 'label': 'medium_control'},
@@ -173,6 +184,9 @@ NOISE_SCALE = 40.0
 
 # Timing parameters
 # These are arbitrary, maybe needs to be adjusted based on a few self-trial duration examinations
+# MCRL data: 
+    # harder trials take longer
+    # less time is needed towards the end experiment due to learning
 FRAME_RATE = 60  # Hz (matches pygame clock.tick(60))
 MOVEMENT_DURATION = 2.0  # seconds per trial
 N_FRAMES = int(FRAME_RATE * MOVEMENT_DURATION)  # 120 frames per trial

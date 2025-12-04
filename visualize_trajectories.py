@@ -14,7 +14,7 @@ target_pos = metadata['target_pos']
 conditions = ["full_control", "medium_control", "low_control"]
 condition_titles = ["Full Control (100%)", "Medium Control (50%)", "Low Control (20%)"]
 
-# Trial indices to visualize
+# Trial indices to visualize -- makes no sense because we cannot have learning lol
 trial_numbers = [9, 19, 39]   # (10th, 20th, 40th) zero-indexed
 trial_titles = ["Trial 10", "Trial 20", "Trial 40"]
 
